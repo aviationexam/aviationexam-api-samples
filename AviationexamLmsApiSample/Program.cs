@@ -1,23 +1,21 @@
 ﻿using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
 
-namespace AviationexamLmsApiSample
+namespace Aviationexam.LmsApiSample
 {
     class Program
     {
         /// The client information used to get the OAuth Access Token from the server.
-        static string _clientId = "8b539a5f95ff47f0adf691179751d8d9";
-
-        static string _clientSecret = "7M17h8Wb4PMxOeSIlRQEHjzup5wxPwEOCb0BdkcE4moyjUTLbc7HNOsb38OCdBql";
+        static string _clientId = "REPLACE_WITH_YOUR_CLIENT_ID";
+        static string _clientSecret = "REPLACE_WITH_YOUR_CLIENT_SECRET";
 
         // Api url address
-        static string _authUrl = "https://pps.aviationexam.com/auth/connect/token";
-        static string _apiUrl = "https://pps.aviationexam.com/api/client/";
+        static string _authUrl = "https://beta.aviationexam.com/auth/connect/token";
+        static string _apiUrl = "https://beta.aviationexam.com/api/client/";
 
         // this will hold the Access Token returned from the server.
         static string _accessToken = null;
@@ -40,6 +38,8 @@ namespace AviationexamLmsApiSample
 
             var exams = await GetExamsAsync(DateTime.MinValue);
 
+            Console.WriteLine($"Exams count: {exams?.Count}");
+
             return 0;
         }
 
@@ -51,26 +51,24 @@ namespace AviationexamLmsApiSample
         /// <returns></returns>
         private static async Task<string> GetAccessTokenAsync()
         {
-            using (var client = GetClient(_authUrl))
+            using var client = GetClient(_authUrl);
+            // Build up the data to POST.
+            var postData = new List<KeyValuePair<string, string>>
             {
-                // Build up the data to POST.
-                var postData = new List<KeyValuePair<string, string>>
-                {
-                    new KeyValuePair<string, string>("grant_type", "client_credentials"),
-                    new KeyValuePair<string, string>("client_id", _clientId),
-                    new KeyValuePair<string, string>("client_secret", _clientSecret)
-                };
+                new KeyValuePair<string, string>("grant_type", "client_credentials"),
+                new KeyValuePair<string, string>("client_id", _clientId),
+                new KeyValuePair<string, string>("client_secret", _clientSecret)
+            };
 
-                FormUrlEncodedContent content = new FormUrlEncodedContent(postData);
+            FormUrlEncodedContent content = new FormUrlEncodedContent(postData);
 
-                // Post to the Server and parse the response.
-                HttpResponseMessage response = await client.PostAsync("Token", content);
-                string jsonString = await response.Content.ReadAsStringAsync();
-                object responseData = JsonConvert.DeserializeObject(jsonString);
+            // Post to the Server and parse the response.
+            HttpResponseMessage response = await client.PostAsync("Token", content);
+            string jsonString = await response.Content.ReadAsStringAsync();
+            object responseData = JsonConvert.DeserializeObject(jsonString);
 
-                // return the Access Token.
-                return ((dynamic) responseData).access_token;
-            }
+            // return the Access Token.
+            return ((dynamic) responseData).access_token;
         }
 
         /// <summary>
@@ -115,37 +113,35 @@ namespace AviationexamLmsApiSample
             var list = new List<T>();
             string url = queryUrl;
 
-            using (var client = GetClient(_apiUrl))
+            using var client = GetClient(_apiUrl);
+            string continuationToken = "";
+
+            do
             {
-                string continuationToken = "";
+                url = string.IsNullOrEmpty(continuationToken) ? queryUrl : queryUrl + $"&continuationToken={continuationToken}";
 
-                do
+                // make the request
+                var response = await client.GetAsync(url);
+                string jsonString = await response.Content.ReadAsStringAsync();
+
+                if (!string.IsNullOrEmpty(jsonString))
                 {
-                    url = string.IsNullOrEmpty(continuationToken) ? queryUrl : queryUrl + $"&continuationToken={continuationToken}";
-
-                    // make the request
-                    var response = await client.GetAsync(url);
-                    string jsonString = await response.Content.ReadAsStringAsync();
-
-                    if (!string.IsNullOrEmpty(jsonString))
+                    var responseData = JsonConvert.DeserializeObject<ContinuationResponse<T>>(jsonString);
+                    if (responseData.Items != null)
                     {
-                        var responseData = JsonConvert.DeserializeObject<ContinuationResponse<T>>(jsonString);
-                        if (responseData.Items != null)
-                        {
-                            list.AddRange(responseData.Items);
-                        }
-
-                        continuationToken = responseData.ContinuationToken;
-                    }
-                    else
-                    {
-                        break;
+                        list.AddRange(responseData.Items);
                     }
 
-                } while (!string.IsNullOrEmpty(continuationToken));
+                    continuationToken = responseData.ContinuationToken;
+                }
+                else
+                {
+                    break;
+                }
 
-                // parse the response and return the data.
-            }
+            } while (!string.IsNullOrEmpty(continuationToken));
+
+            // parse the response and return the data.
             return list;
         }
 

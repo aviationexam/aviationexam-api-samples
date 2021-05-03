@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace AviationexamLmsApiSample
+namespace Aviationexam.LmsApiSample
 {
     public class ContinuationResponse<T>
     {
