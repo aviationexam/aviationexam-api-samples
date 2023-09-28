@@ -10,18 +10,18 @@ namespace Aviationexam.LmsApiSample
     class Program
     {
         /// The client information used to get the OAuth Access Token from the server.
-        static string _clientId = "REPLACE_WITH_YOUR_CLIENT_ID";
-        static string _clientSecret = "REPLACE_WITH_YOUR_CLIENT_SECRET";
+        private const string ClientId = "REPLACE_WITH_YOUR_CLIENT_ID";
+        private const string ClientSecret = "REPLACE_WITH_YOUR_CLIENT_SECRET";
 
         // Api url address
-        static string _authUrl = "https://beta.aviationexam.com/auth/connect/token";
-        static string _apiUrl = "https://beta.aviationexam.com/api/client/";
+        private const string AuthUrl = "https://beta.aviationexam.com/auth/connect/token";
+        private const string ApiUrl = "https://beta.aviationexam.com/api/client/";
 
         // this will hold the Access Token returned from the server.
-        static string _accessToken = null;
+        static string _accessToken;
 
         // max rows per request (max 1000)
-        static int _pageSize = 100;
+        static readonly int PageSize = 100;
 
         /// <summary>
         /// This method does all the work to get an Access Token and get all users and their exams.
@@ -34,51 +34,50 @@ namespace Aviationexam.LmsApiSample
             Console.WriteLine(_accessToken != null ? "Got Token" : "No Token found");
 
             // Next time use date of the previous synchronization instead of DateTime.MinValue
-            //var users = await GetUsersAsync(DateTime.MinValue);
-
+            var users = await GetUsersAsync(DateTime.MinValue);
+            Console.WriteLine($"Exams count: {users?.Count}");
+            
             var exams = await GetExamsAsync(DateTime.MinValue);
 
             Console.WriteLine($"Exams count: {exams?.Count}");
 
             return 0;
         }
-
-
+        
         /// <summary>
         /// This method uses the OAuth Client Credentials Flow to get an Access Token to provide
         /// Authorization to the APIs.
         /// </summary>
-        /// <returns></returns>
         private static async Task<string> GetAccessTokenAsync()
         {
-            using var client = GetClient(_authUrl);
+            using var client = GetClient(AuthUrl);
             // Build up the data to POST.
             var postData = new List<KeyValuePair<string, string>>
             {
-                new KeyValuePair<string, string>("grant_type", "client_credentials"),
-                new KeyValuePair<string, string>("client_id", _clientId),
-                new KeyValuePair<string, string>("client_secret", _clientSecret)
+                new("grant_type", "client_credentials"),
+                new("client_id", ClientId),
+                new("client_secret", ClientSecret)
             };
 
-            FormUrlEncodedContent content = new FormUrlEncodedContent(postData);
+            var content = new FormUrlEncodedContent(postData);
 
             // Post to the Server and parse the response.
-            HttpResponseMessage response = await client.PostAsync("Token", content);
+            var response = await client.PostAsync("Token", content);
             string jsonString = await response.Content.ReadAsStringAsync();
             object responseData = JsonConvert.DeserializeObject(jsonString);
 
             // return the Access Token.
-            return ((dynamic) responseData).access_token;
+            return ((dynamic) responseData)?.access_token;
         }
 
         /// <summary>
         /// Get users.
         /// </summary>
-        /// <param name="lastSyncDate">Date of last synchronization. Only users registered after this date will be returned.</param>
+        /// <param name="lastDateUpdate">Date of last synchronization. Only users registered after this date will be returned.</param>
         /// <returns>The page of articles.</returns>
         private static async Task<List<GetLmsStudentOutput>> GetUsersAsync(DateTime lastDateUpdate)
         {
-            string url = $"lms/users?pageSize={_pageSize}&lastDateUpdate={lastDateUpdate:O}";
+            string url = $"lms/users?pageSize={PageSize}&lastDateUpdate={lastDateUpdate:O}";
 
             return await GetContinuationRequestAsync<GetLmsStudentOutput>(url);
         }
@@ -86,11 +85,11 @@ namespace Aviationexam.LmsApiSample
         /// <summary>
         /// Get exams.
         /// </summary>
-        /// <param name="lastSyncDate">Date of last synchronization. Only exams generated after this date will be returned.</param>
+        /// <param name="lastDateUpdate">Date of last synchronization. Only exams generated after this date will be returned.</param>
         /// <returns>The page of articles.</returns>
         private static async Task<List<GetLmsStudentExamOutput>> GetExamsAsync(DateTime lastDateUpdate)
         {
-            string url = $"lms/exams?pageSize={_pageSize}&lastDateUpdate={lastDateUpdate:O}";
+            string url = $"lms/exams?pageSize={PageSize}&lastDateUpdate={lastDateUpdate:O}";
 
             return await GetContinuationRequestAsync<GetLmsStudentExamOutput>(url);
         }
@@ -111,14 +110,13 @@ namespace Aviationexam.LmsApiSample
         private static async Task<List<T>> GetContinuationRequestAsync<T>(string queryUrl)
         {
             var list = new List<T>();
-            string url = queryUrl;
 
-            using var client = GetClient(_apiUrl);
+            using var client = GetClient(ApiUrl);
             string continuationToken = "";
 
             do
             {
-                url = string.IsNullOrEmpty(continuationToken) ? queryUrl : queryUrl + $"&continuationToken={continuationToken}";
+                var url = string.IsNullOrEmpty(continuationToken) ? queryUrl : queryUrl + $"&continuationToken={continuationToken}";
 
                 // make the request
                 var response = await client.GetAsync(url);
@@ -145,7 +143,7 @@ namespace Aviationexam.LmsApiSample
             return list;
         }
 
-        static void Main(string[] args)
+        static void Main()
         {
             Console.WriteLine("Started");
 
