@@ -14,8 +14,8 @@ namespace Aviationexam.LmsApiSample
         private const string ClientSecret = "REPLACE_WITH_YOUR_CLIENT_SECRET";
 
         // Api url address
-        private const string AuthUrl = "https://beta.aviationexam.com/auth/connect/token";
-        private const string ApiUrl = "https://beta.aviationexam.com/api/client/";
+        private const string AuthUrl = "https://auth.beta.aviationexam.com/auth/connect/token";
+        private const string ApiUrl = "https://api.beta.aviationexam.com/api/client/";
 
         // this will hold the Access Token returned from the server.
         static string _accessToken;
@@ -26,7 +26,6 @@ namespace Aviationexam.LmsApiSample
         /// <summary>
         /// This method does all the work to get an Access Token and get all users and their exams.
         /// </summary>
-        /// <returns></returns>
         private static async Task<int> GetUsersAndExamsAsync()
         {
             // Get the Access Token.
@@ -35,7 +34,7 @@ namespace Aviationexam.LmsApiSample
 
             // Next time use date of the previous synchronization instead of DateTime.MinValue
             var users = await GetUsersAsync(DateTime.MinValue);
-            Console.WriteLine($"Exams count: {users?.Count}");
+            Console.WriteLine($"Users count: {users?.Count}");
             
             var exams = await GetExamsAsync(DateTime.MinValue);
 
@@ -56,7 +55,8 @@ namespace Aviationexam.LmsApiSample
             {
                 new("grant_type", "client_credentials"),
                 new("client_id", ClientId),
-                new("client_secret", ClientSecret)
+                new("client_secret", ClientSecret),
+                new("scope", "public-lms")
             };
 
             var content = new FormUrlEncodedContent(postData);
