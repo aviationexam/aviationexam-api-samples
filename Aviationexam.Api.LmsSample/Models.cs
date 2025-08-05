@@ -1,15 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
 
 namespace Aviationexam.LmsApiSample
 {
-    public class ContinuationResponse<T>
-    {
-        public IEnumerable<T> Items { get; set; }
-        
-        public string ContinuationToken { get; set; }
-    }
-
     public class GetLmsStudentOutput
     {
         public int Id { get; set; }
