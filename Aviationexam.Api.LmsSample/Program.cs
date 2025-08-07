@@ -1,5 +1,4 @@
 ﻿using Aviationexam.Api.Common.Helpers;
-using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -17,9 +16,8 @@ static class Program
     private const string AuthUrl = "https://auth.beta.aviationexam.com/auth/connect/token";
     private const string ApiUrl = "https://api.beta.aviationexam.com/api/client/";
 
-    // this will hold the Access Token returned from the server.
-    static string _accessToken;
-
+    private static ServiceManagement _service = null!;
+    
     // max rows per request (max 1000)
     static readonly int PageSize = 100;
 
@@ -48,7 +46,7 @@ static class Program
     {
         string url = $"lms/users?pageSize={PageSize}&lastDateUpdate={lastDateUpdate:O}";
 
-        return await GetContinuationRequestAsync<GetLmsStudentOutput>(url);
+        return await _service.GetContinuationRequestAsync<GetLmsStudentOutput>(url);
     }
 
     /// <summary>
@@ -60,17 +58,18 @@ static class Program
     {
         string url = $"lms/exams?pageSize={PageSize}&lastDateUpdate={lastDateUpdate:O}";
 
-        return await HttpClientHelper.GetContinuationRequestAsync<GetLmsStudentExamOutput>(ApiUrl, url, _accessToken);
+        return await _service.GetContinuationRequestAsync<GetLmsStudentExamOutput>(url);
     }
-
-    private static async Task<IReadOnlyCollection<T>> GetContinuationRequestAsync<T>(string url)
-        => await HttpClientHelper.GetContinuationRequestAsync<T>(ApiUrl, url, _accessToken);
 
     static async Task Main()
     {
         Console.WriteLine("Started");
         
-        _accessToken = await HttpClientHelper.GetAccessTokenAsync(AuthUrl, ClientId, ClientSecret, ApiScope);        
+        _service = new ServiceManagement(ClientId, ClientSecret, ApiScope, AuthUrl, ApiUrl);
+        
+        var accessToken = await _service.GetAccessTokenAsync();
+
+        Console.WriteLine(!string.IsNullOrEmpty(accessToken) ? "Authentication successful." : "Authentication failed.");
 
         GetUsersAndExamsAsync().Wait();
 
