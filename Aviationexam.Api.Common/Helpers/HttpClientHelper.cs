@@ -2,16 +2,29 @@
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Aviationexam.Api.Common.Helpers;
 
 public static class HttpClientHelper
 {
+    private static readonly JsonSerializerOptions SerializerOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        DictionaryKeyPolicy = JsonNamingPolicy.CamelCase,
+        PropertyNameCaseInsensitive = true,
+        Converters =
+        {
+            new JsonStringEnumConverter(),
+            new BigIntJsonConverter()
+        }
+    };
+    
     /// <summary>
     /// This method uses the OAuth Client Credentials Flow to get an Access Token to provide
     /// Authorization to the APIs.
     /// </summary>    
-    public static async Task<string?> GetAccessTokenAsync(string authUrl, string clientId, string clientSecret, string scope)
+    internal static async Task<string?> GetAccessTokenAsync(string authUrl, string clientId, string clientSecret, string scope)
     {
         using var client = GetClient(authUrl);
         // Build up the data to POST.
@@ -38,7 +51,7 @@ public static class HttpClientHelper
         throw new Exception($"Error getting access token. StatusCode {response.StatusCode}");       
     }
 
-    private static HttpClient GetClient(string baseUrl, string? accessToken = null)
+    public static HttpClient GetClient(string baseUrl, string? accessToken = null)
     {
         var client = new HttpClient();
         client.BaseAddress = new Uri(baseUrl);
@@ -54,11 +67,10 @@ public static class HttpClientHelper
         return client;
     }    
     
-    public static async Task<IReadOnlyCollection<T>> GetContinuationRequestAsync<T>(string apiUrl, string queryUrl, string accessToken)
+    public static async Task<IReadOnlyCollection<T>> GetContinuationRequestAsync<T>(this HttpClient client, string queryUrl)
     {
         var list = new List<T>();
 
-        using var client = GetClient(apiUrl, accessToken);
         string? continuationToken = "";
 
         do
@@ -90,24 +102,45 @@ public static class HttpClientHelper
         return list;
     }
 
-    public static async Task<T> GetAsync<T>(string apiUrl, string queryUrl, string accessToken)
+    public static async Task<TResult> GetAsync<TResult>(this HttpClient client, string queryUrl)
     {
-        if (string.IsNullOrEmpty(accessToken))
-        {
-            Console.WriteLine("Get access token at first");
-        }
-        
-        using var client = GetClient(apiUrl, accessToken);
-
-        // make the request
         var response = await client.GetAsync(queryUrl);
-        string jsonString = await response.Content.ReadAsStringAsync();
+        
+        return await GetResponse<TResult>(response);    
+    }
+    
+    public static async Task<TResult> PutAsync<TData, TResult>(this HttpClient client, TData data, string queryUrl)
+    {
+        using var content = CreateContent(data);        
+        
+        var response = await client.PutAsync(queryUrl, content);
 
+        return await GetResponse<TResult>(response);       
+    }
+
+    public static async Task<TResult> PostAsync<TData, TResult>(this HttpClient client, TData data, string queryUrl)
+    {
+        using var content = CreateContent(data);        
+        
+        var response = await client.PostAsync(queryUrl, content);
+
+        return await GetResponse<TResult>(response);       
+    }
+    
+    private static async Task<T> GetResponse<T>(HttpResponseMessage response)
+    {
+        string jsonString = await response.Content.ReadAsStringAsync();
+        
         if (response.IsSuccessStatusCode && !string.IsNullOrEmpty(jsonString))
         {
-            var responseData = JsonSerializer.Deserialize<T>(jsonString);
+            var responseData = JsonSerializer.Deserialize<T>(jsonString, SerializerOptions);
 
             return responseData!;
+        }
+        
+        if (!response.IsSuccessStatusCode)
+        {
+            
         }
 
         throw new Exception($"Error getting data. StatusCode {response.StatusCode}");       
@@ -120,34 +153,4 @@ public static class HttpClientHelper
     ) => data == null
         ? CreateEmptyContent()
         : new StringContent(JsonSerializer.Serialize(data), Encoding.UTF8, "application/json");    
-    
-    public static async Task<TResult> PutAsync<TData, TResult>(TData data, string apiUrl, string queryUrl, string accessToken)
-    {
-        if (string.IsNullOrEmpty(accessToken))
-        {
-            Console.WriteLine("Get access token at first");
-        }
-        
-        using var client = GetClient(apiUrl, accessToken);
-
-        using var content = CreateContent(data);        
-        
-        // make the request
-        var response = await client.PutAsync(queryUrl, content);
-        string jsonString = await response.Content.ReadAsStringAsync();
-
-        if (response.IsSuccessStatusCode && !string.IsNullOrEmpty(jsonString))
-        {
-            var responseData = JsonSerializer.Deserialize<TResult>(jsonString, new JsonSerializerOptions
-            {
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                DictionaryKeyPolicy = JsonNamingPolicy.CamelCase,
-                PropertyNameCaseInsensitive = true
-            });
-
-            return responseData!;
-        }
-
-        throw new Exception($"Error getting data. StatusCode {response.StatusCode}");       
-    }    
 }
