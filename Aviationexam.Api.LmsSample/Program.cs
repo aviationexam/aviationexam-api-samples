@@ -1,7 +1,9 @@
 ﻿using Aviationexam.Api.Common.Helpers;
+using Aviationexam.LmsApiSample.Models;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+// ReSharper disable UnusedMember.Local
 
 namespace Aviationexam.LmsApiSample;
 
@@ -10,11 +12,12 @@ static class Program
     /// The client information used to get the OAuth Access Token from the server.
     private const string ClientId = "REPLACE_WITH_YOUR_CLIENT_ID";
     private const string ClientSecret = "REPLACE_WITH_YOUR_CLIENT_SECRET";
-    private const string ApiScope = "public-lms";
-
+    
     // Api url address
     private const string AuthUrl = "https://auth.beta.aviationexam.com/auth/connect/token";
     private const string ApiUrl = "https://api.beta.aviationexam.com/api/client/";
+
+    private const string ApiScope = "public-lms";
 
     private static ServiceManagement _service = null!;
     
@@ -24,17 +27,15 @@ static class Program
     /// <summary>
     /// This method does all the work to get an Access Token and get all users and their exams.
     /// </summary>
-    private static async Task<int> GetUsersAndExamsAsync()
+    private static async Task GetUsersAndExamsAsync()
     {
         // Next time, use the date of the previous synchronization instead of DateTime.MinValue
         var users = await GetUsersAsync(DateTime.MinValue);
-        Console.WriteLine($"Users count: {users?.Count}");
+        Console.WriteLine($"Users count: {users.Count}");
             
         var exams = await GetExamsAsync(DateTime.MinValue);
 
-        Console.WriteLine($"Exams count: {exams?.Count}");
-
-        return 0;
+        Console.WriteLine($"Exams count: {exams.Count}");
     }
     
     /// <summary>
@@ -61,6 +62,20 @@ static class Program
         return await _service.GetContinuationRequestAsync<GetLmsStudentExamOutput>(url);
     }
 
+    private static async Task GetNewDiscountCode()
+    {
+        var input = new DiscountCodeClientInput
+        {
+            UserClientId = "USER_123",
+        };
+        
+        string url = "lms/store/discount-code";       
+        
+        var discountCode = await _service.PostAsync<DiscountCodeClientInput, DiscountCodeClientOutput>(input, url);
+        
+        Console.WriteLine($"Discount code: {discountCode.Code}");
+    }    
+    
     static async Task Main()
     {
         Console.WriteLine("Started");
@@ -71,7 +86,9 @@ static class Program
 
         Console.WriteLine(!string.IsNullOrEmpty(accessToken) ? "Authentication successful." : "Authentication failed.");
 
-        GetUsersAndExamsAsync().Wait();
+        // await GetUsersAndExamsAsync();
+        
+        await GetNewDiscountCode();
 
         Console.WriteLine("Done");
         Console.ReadLine();
