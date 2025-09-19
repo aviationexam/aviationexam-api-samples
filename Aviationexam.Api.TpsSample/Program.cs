@@ -26,7 +26,7 @@ static class Program
     /// Get all countries. 
     /// </summary>
     private static async Task<IReadOnlyCollection<CountryOutput>> GetCountries()
-        => await _service.GetAsync<IReadOnlyCollection<CountryOutput>>("user/countries");
+        => await _service.GetAsync<IReadOnlyCollection<CountryOutput>>("country");
     
     private static async Task<UserOutput> AddUser()
     {
